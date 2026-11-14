@@ -13,7 +13,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 supabase: Client | None = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-app = FastAPI(title="Sky Spotter API", version="0.3.0")
+app = FastAPI(title="Sky Spotter API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -60,7 +60,7 @@ SKY_CATALOG_PAIRS = [
 
 @app.get("/")
 def healthcheck():
-    return {"status": "online", "database": "connected" if supabase else "unconfigured"}
+    return {"status": "online"}
 
 @app.get("/api/nasa-pair")
 def get_nasa_pair():
@@ -69,7 +69,7 @@ def get_nasa_pair():
 @app.post("/api/annotations")
 def save_annotations(payload: AnnotationPayload):
     if not supabase:
-        raise HTTPException(status_code=500, detail="Credenciais do Supabase não configuradas no .env")
+        raise HTTPException(status_code=500, detail="Supabase não configurado")
 
     rows = [
         {
@@ -82,6 +82,42 @@ def save_annotations(payload: AnnotationPayload):
         }
         for marker in payload.annotations
     ]
-
     response = supabase.table("annotations").insert(rows).execute()
     return {"status": "success", "inserted": len(rows), "data": response.data}
+
+@app.get("/api/insights")
+def get_insights():
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase não configurado")
+
+    response = supabase.table("annotations").select("*").order("created_at", desc=True).execute()
+    records = response.data or []
+
+    movimento = [r for r in records if r.get("category") == "Movimento"]
+    brilho = [r for r in records if r.get("category") == "Brilho"]
+    ruido = [r for r in records if r.get("category") == "Ruído"]
+
+    return {
+        "total_registos": len(records),
+        "paineis": {
+            "movimento": {
+                "titulo": "Objetos em Movimento",
+                "icone": "🪐",
+                "count": len(movimento),
+                "itens": movimento
+            },
+            "brilho": {
+                "titulo": "Variação de Brilho",
+                "icone": "✨",
+                "count": len(brilho),
+                "itens": brilho
+            },
+            "ruido": {
+                "titulo": "Ruídos e Artefatos",
+                "icone": "📡",
+                "count": len(ruido),
+                "itens": ruido
+            }
+        },
+        "sugestoes_cientificas": []
+    }
