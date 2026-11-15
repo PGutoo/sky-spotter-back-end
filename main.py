@@ -51,8 +51,8 @@ TARGET_COORDINATES = [
 ]
 
 SURVEY_MAP = {
-    "A": "CDS/P/DSS2/red",
-    "B": "CDS/P/DSS2/blue",
+    "A": "CDS/P/ALLWISE/W1",
+    "B": "CDS/P/2MASS/K",
 }
 
 def generate_fallback_starfield_svg(ra: str, dec: str, epoch: str) -> str:
