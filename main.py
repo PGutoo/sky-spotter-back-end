@@ -143,10 +143,11 @@ def save_annotations(payload: AnnotationPayload):
     ]
 
     try:
-        response = supabase.table("annotations").insert(rows).execute()
+        response = supabase.table("anomalies").insert(rows).execute()
         return {"status": "success", "inserted": len(rows), "data": response.data}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Erro ao persistir no Supabase: {str(exc)}")
+
 
 @app.get("/api/insights")
 def get_insights():
@@ -154,7 +155,7 @@ def get_insights():
         raise HTTPException(status_code=500, detail="Supabase não configurado")
 
     try:
-        response = supabase.table("annotations").select("*").order("created_at", desc=True).execute()
+        response = supabase.table("anomalies").select("*").order("created_at", desc=True).execute()
         records = response.data or []
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Erro ao consultar Supabase: {str(exc)}")
