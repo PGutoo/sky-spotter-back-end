@@ -13,7 +13,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 supabase: Client | None = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-app = FastAPI(title="Sky Spotter API", version="0.4.0")
+app = FastAPI(title="Sky Spotter API", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +57,27 @@ SKY_CATALOG_PAIRS = [
         "image_b": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=10.68,41.26&Survey=DSS2+IR&Return=JPEG&Pixels=500"
     }
 ]
+
+def build_scientific_recommendations(movimento: list, brilho: list, ruido: list) -> list[str]:
+    sugestoes = []
+    if movimento:
+        sugestoes.append(
+            "🪐 Painel de Movimento: Foram detetados potenciais objetos transientes (asteróides ou cometas). "
+            "Sugestão: Cruzar as coordenadas RA/Dec registadas com o banco de dados de órbitas do Minor Planet Center (MPC)."
+        )
+    if brilho:
+        sugestoes.append(
+            "✨ Painel de Brilho: Identificadas variações de fluxo luminoso. "
+            "Sugestão: Candidatas a estrelas variáveis ou eventos cataclísmicos. Recomenda-se verificar curvas de luz históricas."
+        )
+    if ruido:
+        sugestoes.append(
+            "📡 Painel de Ruído: Registados artefatos e ruídos de sensores. "
+            "Sugestão: Útil para criar uma máscara de calibração e filtrar falsos positivos em varreduras futuras do telescópio."
+        )
+    if not sugestoes:
+        sugestoes.append("🔭 Nenhuma anomalia catalogada ainda. Inicie uma varredura no Observatório Blink para alimentar o motor.")
+    return sugestoes
 
 @app.get("/")
 def healthcheck():
@@ -119,5 +140,5 @@ def get_insights():
                 "itens": ruido
             }
         },
-        "sugestoes_cientificas": []
+        "sugestoes_cientificas": build_scientific_recommendations(movimento, brilho, ruido)
     }
