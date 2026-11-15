@@ -50,20 +50,20 @@ TARGET_COORDINATES = [
 
 FALLBACK_PAIRS = {
     "83.82": {
-        "image_a": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=83.82,-5.39&Survey=DSS2+Red&Return=JPEG&Pixels=500",
-        "image_b": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=83.82,-5.39&Survey=DSS2+Blue&Return=JPEG&Pixels=500"
+        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=83.82&dec=-5.39&format=jpg",
+        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fred&width=500&height=500&fov=0.25&ra=83.82&dec=-5.39&format=jpg"
     },
     "266.41": {
-        "image_a": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=266.41,-29.0&Survey=2MASS-J&Return=JPEG&Pixels=500",
-        "image_b": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=266.41,-29.0&Survey=2MASS-K&Return=JPEG&Pixels=500"
+        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=266.41&dec=-29.0&format=jpg",
+        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2F2MASS%2FK&width=500&height=500&fov=0.25&ra=266.41&dec=-29.0&format=jpg"
     },
     "10.68": {
-        "image_a": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=10.68,41.26&Survey=DSS2+Red&Return=JPEG&Pixels=500",
-        "image_b": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=10.68,41.26&Survey=DSS2+IR&Return=JPEG&Pixels=500"
+        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=10.68&dec=41.26&format=jpg",
+        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fblue&width=500&height=500&fov=0.25&ra=10.68&dec=41.26&format=jpg"
     },
     "164.7": {
-        "image_a": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=164.7,-5.8&Survey=DSS2+Red&Return=JPEG&Pixels=500",
-        "image_b": "https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=164.7,-5.8&Survey=DSS2+Blue&Return=JPEG&Pixels=500"
+        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fred&width=500&height=500&fov=0.25&ra=164.7&dec=-5.8&format=jpg",
+        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fblue&width=500&height=500&fov=0.25&ra=164.7&dec=-5.8&format=jpg"
     }
 }
 
