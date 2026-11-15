@@ -3,8 +3,9 @@ import random
 from typing import List
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 from supabase import create_client, Client
 
@@ -15,11 +16,12 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 supabase: Client | None = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 IRSA_SIA_V2_ENDPOINT = "https://irsa.ipac.caltech.edu/SIA"
+HIPS2FITS_ENDPOINT = "https://alasky.cds.unistra.fr/hips-image-services/hips2fits"
 
 app = FastAPI(
     title="Sky Spotter API",
     description="Plataforma de telemetria astrométrica integrada ao protocolo IVOA SIA v2 da NASA e Supabase.",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 app.add_middleware(
@@ -45,27 +47,40 @@ TARGET_COORDINATES = [
     {"ra": "83.82", "dec": "-5.39", "prefix": "SPH-QR2"},
     {"ra": "266.41", "dec": "-29.0", "prefix": "SPH-CACHE"},
     {"ra": "10.68", "dec": "41.26", "prefix": "SPH-CACHE"},
-    {"ra": "164.7", "dec": "-5.8", "prefix": "SPH-CACHE"},
+    {"ra": "187.70", "dec": "12.39", "prefix": "SPH-CACHE"},
 ]
 
-FALLBACK_PAIRS = {
-    "83.82": {
-        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=83.82&dec=-5.39&format=jpg",
-        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fred&width=500&height=500&fov=0.25&ra=83.82&dec=-5.39&format=jpg"
-    },
-    "266.41": {
-        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=266.41&dec=-29.0&format=jpg",
-        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2F2MASS%2FK&width=500&height=500&fov=0.25&ra=266.41&dec=-29.0&format=jpg"
-    },
-    "10.68": {
-        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FALLWISE%2FW1&width=500&height=500&fov=0.25&ra=10.68&dec=41.26&format=jpg",
-        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fblue&width=500&height=500&fov=0.25&ra=10.68&dec=41.26&format=jpg"
-    },
-    "164.7": {
-        "image_a": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fred&width=500&height=500&fov=0.25&ra=164.7&dec=-5.8&format=jpg",
-        "image_b": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fblue&width=500&height=500&fov=0.25&ra=164.7&dec=-5.8&format=jpg"
-    }
+SURVEY_MAP = {
+    "A": "CDS/P/DSS2/red",
+    "B": "CDS/P/DSS2/blue",
 }
+
+def generate_fallback_starfield_svg(ra: str, dec: str, epoch: str) -> str:
+    """Gera um recorte estelar SVG determinístico caso os servidores externos estejam indisponíveis."""
+    rng = random.Random(f"{ra}:{dec}")
+    stars = []
+    for _ in range(95):
+        cx = rng.randint(15, 485)
+        cy = rng.randint(15, 485)
+        r = round(rng.uniform(0.6, 2.4), 2)
+        opacity = round(rng.uniform(0.35, 0.95), 2)
+        stars.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#e2e8f0" opacity="{opacity}"/>')
+
+    # Objeto transiente que muda de posição entre Época A e Época B
+    tx_base = rng.randint(120, 360)
+    ty_base = rng.randint(120, 360)
+    tx = tx_base if epoch == "A" else tx_base + 22
+    ty = ty_base if epoch == "A" else ty_base - 16
+    transient = (
+        f'<circle cx="{tx}" cy="{ty}" r="3.2" fill="#38bdf8" opacity="0.95"/>'
+        f'<circle cx="{tx}" cy="{ty}" r="7" fill="#38bdf8" opacity="0.2"/>'
+    )
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+      <rect width="500" height="500" fill="#030712"/>
+      {''.join(stars)}
+      {transient}
+    </svg>"""
 
 def build_scientific_recommendations(movimento: list, brilho: list, ruido: list) -> list[str]:
     sugestoes = []
@@ -98,16 +113,15 @@ def healthcheck():
     }
 
 @app.get("/api/nasa-pair")
-async def get_nasa_pair():
+async def get_nasa_pair(request: Request):
     target = random.choice(TARGET_COORDINATES)
     ra = target["ra"]
     dec = target["dec"]
     image_id = f"{target['prefix']}-{ra}-{dec}"
 
-    # Consulta metadados via protocolo IVOA SIA v2 (IRSA NASA) com fallback instantâneo
     sia_status = "cached"
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=2.5) as client:
             params = {"POS": f"CIRCLE {ra} {dec} 0.05", "COLLECTION": "wise_allwise_p3am_cdd", "RESPONSEFORMAT": "JSON"}
             res = await client.get(IRSA_SIA_V2_ENDPOINT, params=params)
             if res.status_code == 200:
@@ -115,15 +129,51 @@ async def get_nasa_pair():
     except Exception:
         sia_status = "fallback_cache"
 
-    pair = FALLBACK_PAIRS[ra]
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", request.url.netloc)
+    base_url = f"{proto}://{host}"
+
     return {
         "image_id": image_id,
         "ra": ra,
         "dec": dec,
         "source_protocol": sia_status,
-        "image_a": pair["image_a"],
-        "image_b": pair["image_b"]
+        "image_a": f"{base_url}/api/sky-cutout?ra={ra}&dec={dec}&epoch=A",
+        "image_b": f"{base_url}/api/sky-cutout?ra={ra}&dec={dec}&epoch=B"
     }
+
+@app.get("/api/sky-cutout")
+async def get_sky_cutout(ra: str, dec: str, epoch: str = "A"):
+    survey = SURVEY_MAP.get(epoch.upper(), "CDS/P/DSS2/red")
+    params = {
+        "hips": survey,
+        "width": 500,
+        "height": 500,
+        "fov": 0.25,
+        "ra": ra,
+        "dec": dec,
+        "projection": "TAN",
+        "format": "jpg"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            res = await client.get(HIPS2FITS_ENDPOINT, params=params)
+            if res.status_code == 200 and len(res.content) > 1000:
+                return Response(
+                    content=res.content,
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": "public, max-age=86400"}
+                )
+    except Exception:
+        pass
+
+    svg_content = generate_fallback_starfield_svg(ra, dec, epoch.upper())
+    return Response(
+        content=svg_content,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 @app.post("/api/annotations")
 def save_annotations(payload: AnnotationPayload):
@@ -147,7 +197,6 @@ def save_annotations(payload: AnnotationPayload):
         return {"status": "success", "inserted": len(rows), "data": response.data}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Erro ao persistir no Supabase: {str(exc)}")
-
 
 @app.get("/api/insights")
 def get_insights():
